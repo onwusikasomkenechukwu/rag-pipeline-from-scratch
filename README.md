@@ -1,52 +1,47 @@
 ````markdown
-# RAG from Scratch
+# RAG From Scratch
 
-A lightweight Retrieval-Augmented Generation project built to understand the full document-to-answer pipeline behind modern “chat with your documents” systems.
+A lightweight Retrieval-Augmented Generation pipeline built with LangChain, Chroma, OpenAI embeddings, and web-loaded documents.
 
-This project loads a webpage, splits it into retrievable chunks, embeds those chunks into a vector database, retrieves relevant context for a user question, and passes that context into an LLM to generate a grounded answer.
+This project demonstrates the core architecture behind “chat with your documents” systems: load external text, split it into chunks, embed those chunks, store them in a vector database, retrieve relevant context for a query, and pass that context into an LLM for grounded answer generation.
 
-## What This Project Does
+## Overview
 
-This notebook implements a basic RAG pipeline:
+Large language models are powerful, but they do not automatically know about private, recent, or user-provided documents. Retrieval-Augmented Generation solves this by giving the model relevant context at query time.
+
+This notebook builds a simple RAG pipeline around a web article and answers questions using retrieved evidence from that article.
+
+The flow is:
 
 ```text
-Raw Web Document
+Web Document
     ↓
 Document Loading
     ↓
 Text Chunking
     ↓
-Embedding Generation
+Embedding
     ↓
-Vector Database Storage
+Vector Store
     ↓
 Semantic Retrieval
     ↓
-Prompt Construction
+Prompt + LLM
     ↓
-LLM Answer Generation
+Grounded Answer
 ````
-
-Instead of asking an LLM to answer from pretrained knowledge alone, the system retrieves relevant source material first and uses that retrieved context to produce a more grounded response.
-
-## Why I Built This
-
-I built this as a small AI systems project to understand how retrieval-based LLM applications work under the hood. RAG is the foundation behind many modern AI tools, including internal knowledge assistants, document search systems, research copilots, customer support bots, and coding assistants.
-
-The goal was not to build a large production system, but to understand the core architecture clearly and make the pipeline runnable from end to end.
 
 ## Features
 
-* Loads web documents using LangChain’s `WebBaseLoader`
-* Extracts relevant article content using BeautifulSoup
-* Splits long documents into overlapping chunks
-* Generates embeddings using OpenAI embeddings
+* Loads web documents using `WebBaseLoader`
+* Parses specific HTML sections with BeautifulSoup
+* Splits long text into overlapping chunks
+* Creates embeddings with OpenAI embeddings
 * Stores document vectors in Chroma
 * Retrieves semantically relevant chunks for a user query
-* Builds a local prompt template for grounded question answering
-* Uses an OpenAI chat model to generate concise answers
-* Avoids deprecated LangChain `hub.pull()` usage
-* Uses safer API key handling instead of hardcoding credentials
+* Uses a local prompt template instead of deprecated LangChain Hub imports
+* Generates concise answers grounded in retrieved context
+* Removes unsafe hardcoded API-key handling
 
 ## Tech Stack
 
@@ -54,82 +49,93 @@ The goal was not to build a large production system, but to understand the core 
 * LangChain
 * LangChain Community
 * LangChain OpenAI
-* LangChain Text Splitters
 * ChromaDB
 * BeautifulSoup4
 * OpenAI API
 
-## Project Structure
-
-```text
-rag-from-scratch/
-│
-├── rag_from_scratch_1-4.ipynb          # Main notebook
-├── README.md                           # Project documentation
-└── requirements.txt                    # Python dependencies
-```
-
 ## Installation
 
-Clone the repository:
+Create and activate a virtual environment first.
 
 ```bash
-git clone https://github.com/YOUR-USERNAME/rag-from-scratch.git
-cd rag-from-scratch
+python -m venv .venv
 ```
 
-Install dependencies:
+On Windows:
 
 ```bash
-pip install -r requirements.txt
+.venv\Scripts\activate
 ```
 
-A possible `requirements.txt` file:
-
-```text
-langchain
-langchain-community
-langchain-core
-langchain-openai
-langchain-text-splitters
-chromadb
-beautifulsoup4
-openai
-```
-
-## API Key Setup
-
-This project requires an OpenAI API key.
-
-Do **not** hardcode your API key directly inside the notebook.
-
-Set it as an environment variable instead:
-
-### macOS/Linux
+On macOS/Linux:
 
 ```bash
-export OPENAI_API_KEY="your-api-key-here"
+source .venv/bin/activate
 ```
 
-### Windows Command Prompt
+Install the required packages:
 
-```cmd
-set OPENAI_API_KEY=your-api-key-here
+```bash
+pip install -U langchain langchain-community langchain-core langchain-openai langchain-text-splitters chromadb beautifulsoup4
 ```
 
-### Windows PowerShell
+## Environment Variables
 
-```powershell
-$env:OPENAI_API_KEY="your-api-key-here"
+You need an OpenAI API key.
+
+Create a `.env` file or set the environment variable directly.
+
+```bash
+OPENAI_API_KEY=your_api_key_here
 ```
 
-Then run the notebook normally.
+Do **not** hardcode your API key inside the notebook.
 
-## How It Works
+On Windows Command Prompt:
 
-### 1. Load the Source Document
+```bash
+set OPENAI_API_KEY=your_api_key_here
+```
 
-The pipeline begins by loading a web article:
+On PowerShell:
+
+```bash
+$env:OPENAI_API_KEY="your_api_key_here"
+```
+
+On macOS/Linux:
+
+```bash
+export OPENAI_API_KEY="your_api_key_here"
+```
+
+## Usage
+
+Open the notebook:
+
+```bash
+jupyter notebook rag_from_scratch_1-4_cleaned.ipynb
+```
+
+Run the notebook cells in order.
+
+The final chain can answer questions like:
+
+```python
+rag_chain.invoke("What is Task Decomposition?")
+```
+
+The system will:
+
+1. Search the vector database for relevant chunks.
+2. Format those chunks as context.
+3. Insert the context and question into a prompt.
+4. Send the prompt to the LLM.
+5. Return a concise grounded answer.
+
+## Core Code Structure
+
+### 1. Load Documents
 
 ```python
 loader = WebBaseLoader(
@@ -140,14 +146,11 @@ loader = WebBaseLoader(
         )
     ),
 )
+
 docs = loader.load()
 ```
 
-This extracts the main article content instead of scraping the entire webpage.
-
-### 2. Split the Text
-
-Long documents are split into smaller overlapping chunks:
+### 2. Split Text
 
 ```python
 text_splitter = RecursiveCharacterTextSplitter(
@@ -158,11 +161,7 @@ text_splitter = RecursiveCharacterTextSplitter(
 splits = text_splitter.split_documents(docs)
 ```
 
-Chunking makes retrieval more precise and helps preserve context across boundaries.
-
-### 3. Create Embeddings and Store Them
-
-Each chunk is converted into an embedding vector and stored in Chroma:
+### 3. Create Vector Store
 
 ```python
 vectorstore = Chroma.from_documents(
@@ -173,90 +172,61 @@ vectorstore = Chroma.from_documents(
 retriever = vectorstore.as_retriever()
 ```
 
-This creates a searchable semantic index over the document.
-
-### 4. Retrieve Context
-
-When a user asks a question, the retriever finds the most relevant chunks from the vector database.
+### 4. Build Prompt
 
 ```python
-retriever = vectorstore.as_retriever()
+template = """
+You are an assistant for question-answering tasks.
+Use the following retrieved context to answer the question.
+If you don't know the answer, say that you don't know.
+Use three sentences maximum and keep the answer concise.
+
+Question: {question}
+
+Context: {context}
+
+Answer:
+"""
 ```
 
-### 5. Generate an Answer
-
-The retrieved chunks are inserted into a prompt and passed to an LLM:
+### 5. Create RAG Chain
 
 ```python
-rag_chain.invoke("What is Task Decomposition?")
-```
-
-The model then answers using the provided context.
-
-## Example Question
-
-```python
-rag_chain.invoke("What is Task Decomposition?")
-```
-
-Example output:
-
-```text
-Task decomposition is the process of breaking a complex task into smaller, more manageable steps. In LLM agents, this can be done through prompting, planning methods, or external tools that help the model reason through intermediate actions. It allows the agent to solve difficult problems by handling one step at a time.
+rag_chain = (
+    {
+        "context": retriever | format_docs,
+        "question": RunnablePassthrough()
+    }
+    | prompt
+    | llm
+    | StrOutputParser()
+)
 ```
 
 ## What I Learned
 
-This project helped me understand the basic components of RAG systems:
+This project helped me understand the building blocks of retrieval-grounded LLM systems. Instead of treating an LLM as a standalone answer engine, RAG adds an external memory layer that can be searched at runtime.
 
-* why chunking strategy matters
-* how embeddings represent semantic meaning
-* how vector databases enable similarity search
-* how retrieval improves factual grounding
-* how prompt templates structure LLM responses
-* how fast-moving AI libraries like LangChain can break older code
-* why safe credential handling matters in AI projects
+The most important idea is that the model does not need to memorize everything. It needs a reliable way to retrieve the right information and reason over it.
 
-## Limitations
+This project also exposed some of the practical issues in modern AI tooling, including package version changes, deprecated imports, environment configuration, and safe API-key management.
 
-This is a minimal educational project, not a production RAG system.
+## Future Improvements
 
-Current limitations include:
+Possible extensions include:
 
-* single-document retrieval
-* no persistent Chroma database directory
-* no reranking step
-* no citation formatting in responses
-* no evaluation framework for answer quality
-* no frontend or API wrapper
-* no support for PDFs or uploaded files yet
-
-## Possible Future Improvements
-
-Future versions could include:
-
-* persistent vector storage
-* support for multiple documents
-* PDF ingestion
-* metadata filtering
-* retrieved-source citations
-* reranking with a cross-encoder
-* a Streamlit or React frontend
-* evaluation with test questions
-* comparison across embedding models
-* local LLM support
+* Add support for PDFs
+* Add support for multiple websites
+* Save and reload the Chroma vector database
+* Add metadata filtering
+* Build a Streamlit or FastAPI interface
+* Compare different chunk sizes and overlap settings
+* Add citation-style source tracking
+* Evaluate answer quality across multiple retrieval settings
 
 ## Status
 
-Completed as a small portfolio project for learning and experimentation.
-
-This project is not intended to replace my main research work in embedded ML and biomedical sensing, but it serves as a useful systems exercise in retrieval-grounded language model applications.
-
-## Author
-
-**Somkenechukwu Onwusika**
-Electrical Engineering, Howard University
-Portfolio: [https://onwusikasomkenechukwu.github.io/](https://onwusikasomkenechukwu.github.io/)
+This is a small portfolio project built for learning and experimentation. It is not intended to be a production RAG system, but it demonstrates the core pipeline behind many real-world AI search and document QA tools.
 
 ```
 ```
