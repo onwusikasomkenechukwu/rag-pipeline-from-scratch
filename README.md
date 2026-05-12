@@ -1,4 +1,3 @@
-````markdown
 # RAG From Scratch
 
 A lightweight Retrieval-Augmented Generation pipeline built with LangChain, Chroma, OpenAI embeddings, and web-loaded documents.
@@ -227,6 +226,3 @@ Possible extensions include:
 ## Status
 
 This is a small portfolio project built for learning and experimentation. It is not intended to be a production RAG system, but it demonstrates the core pipeline behind many real-world AI search and document QA tools.
-
-```
-```
